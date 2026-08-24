@@ -19,6 +19,16 @@ import readline from 'node:readline';
 async function main(): Promise<void> {
   const config = loadConfig();
 
+  // Ensure data directories exist
+  const dumpDir = config.dumpPath.substring(0, config.dumpPath.lastIndexOf('/'));
+  if (dumpDir && !fs.existsSync(dumpDir)) {
+    fs.mkdirSync(dumpDir, { recursive: true });
+  }
+  const aofDir = config.aofPath.substring(0, config.aofPath.lastIndexOf('/'));
+  if (aofDir && !fs.existsSync(aofDir)) {
+    fs.mkdirSync(aofDir, { recursive: true });
+  }
+
   const store = new InMemoryStore({
     maxKeys: config.maxKeys,
     onExpired: (key) => console.log(`key expired: ${key}`),
@@ -58,7 +68,7 @@ async function main(): Promise<void> {
 
   const sweeper = new ExpirySweeper(store, config.sweepIntervalMs, config.sweepSampleSize);
   const pubSubManager = new PubSubManager();
-  const handler = new CommandHandler(store, persistenceManager, aofWriter, pubSubManager);
+  const handler = new CommandHandler(store, persistenceManager, aofWriter, pubSubManager, config.requirepass, config.disabledCommands);
   const server = new TcpServer({
     ...config,
     onConnectionClose: (conn) => pubSubManager.removeConnection(conn)
@@ -69,7 +79,8 @@ async function main(): Promise<void> {
     config.statsPort,
     1000,
     handler,
-    (conn) => pubSubManager.removeConnection(conn)
+    (conn) => pubSubManager.removeConnection(conn),
+    config.dashboardPassword
   );
 
   sweeper.start();
@@ -99,14 +110,19 @@ async function main(): Promise<void> {
       console.error('Failed to save state on shutdown:', err);
     }
 
-    statsServer.stop().catch((e) => console.error('StatsServer shutdown error:', e));
-    server
-      .close()
-      .then(() => process.exit(0))
-      .catch((e: unknown) => {
-        console.error('Error during shutdown:', e);
-        process.exit(1);
-      });
+    try {
+      await statsServer.stop();
+    } catch (e) {
+      console.error('StatsServer shutdown error:', e);
+    }
+    
+    try {
+      await server.close();
+      process.exit(0);
+    } catch (e) {
+      console.error('Error during shutdown:', e);
+      process.exit(1);
+    }
   };
 
   process.on('SIGINT', () => { shutdown('SIGINT').catch(console.error); });

@@ -154,6 +154,11 @@ export interface DiscardCommand {
   readonly name: 'DISCARD';
 }
 
+export interface AuthCommand {
+  readonly name: 'AUTH';
+  readonly password: string;
+}
+
 export type Command =
   | SetCommand
   | GetCommand
@@ -181,7 +186,8 @@ export type Command =
   | PublishCommand
   | MultiCommand
   | ExecCommand
-  | DiscardCommand;
+  | DiscardCommand
+  | AuthCommand;
 
 /** A malformed line. Parse errors are expected input, not exceptions, so they are values. */
 export interface ParseError {

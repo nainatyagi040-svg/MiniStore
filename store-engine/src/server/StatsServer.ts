@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { URL } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import type { InMemoryStore } from '../store/InMemoryStore.js';
 import type { CommandHandler } from './CommandHandler.js';
@@ -23,6 +24,7 @@ export class StatsServer {
   readonly #intervalMs: number;
   readonly #commandHandler: CommandHandler | undefined;
   readonly #onPlaygroundClose: ((conn: ClientConnection) => void) | undefined;
+  readonly #dashboardPassword: string | undefined;
 
   #server?: http.Server;
   #wssStats?: WebSocketServer;
@@ -35,7 +37,8 @@ export class StatsServer {
     port = 8090,
     intervalMs = 1000,
     commandHandler?: CommandHandler,
-    onPlaygroundClose?: (conn: ClientConnection) => void
+    onPlaygroundClose?: (conn: ClientConnection) => void,
+    dashboardPassword?: string
   ) {
     this.#store = store;
     this.#host = host;
@@ -43,6 +46,7 @@ export class StatsServer {
     this.#intervalMs = intervalMs;
     this.#commandHandler = commandHandler;
     this.#onPlaygroundClose = onPlaygroundClose;
+    this.#dashboardPassword = dashboardPassword;
   }
 
   get port(): number {
@@ -55,6 +59,14 @@ export class StatsServer {
 
   async start(): Promise<void> {
     this.#server = http.createServer((req, res) => {
+      if (req.url === '/health') {
+        const memoryUsage = process.memoryUsage();
+        const clientsCount = this.#wssStats ? this.#wssStats.clients.size : 0;
+        const uptime = process.uptime();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok', uptime, clientsCount, memoryUsage }));
+        return;
+      }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ status: 'ok' }));
     });
@@ -63,7 +75,23 @@ export class StatsServer {
     this.#wssPlayground = new WebSocketServer({ noServer: true });
 
     this.#server.on('upgrade', (request, socket, head) => {
-      const pathname = request.url;
+      let pathname = request.url;
+      let token = '';
+      if (request.url) {
+        try {
+          const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+          pathname = url.pathname;
+          token = url.searchParams.get('token') || '';
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+
+      if (this.#dashboardPassword !== undefined && token !== this.#dashboardPassword) {
+        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+        socket.destroy();
+        return;
+      }
 
       if (pathname === '/playground') {
         this.#wssPlayground!.handleUpgrade(request, socket, head, (ws) => {

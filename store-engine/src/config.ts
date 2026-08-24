@@ -25,6 +25,12 @@ export interface ServerConfig {
   readonly aofPath: string;
   /** Fsync policy: 'always' (sync every write), 'everysec' (sync every second), 'no' (OS buffers). Defaults to 'everysec'. */
   readonly aofFsync: 'always' | 'everysec' | 'no';
+  /** Optional password required for TCP client authentication. */
+  readonly requirepass?: string;
+  /** Optional password required for dashboard websocket connections. */
+  readonly dashboardPassword?: string;
+  /** Set of commands disabled in production. */
+  readonly disabledCommands: Set<string>;
 }
 
 const DEFAULT_HOST = '127.0.0.1';
@@ -61,7 +67,20 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   if (!['always', 'everysec', 'no'].includes(aofFsync)) {
     throw new Error(`Invalid MINISTORE_AOF_FSYNC "${aofFsync}": expected 'always', 'everysec', or 'no'`);
   }
-  return {
+  
+  const requirepass = env.MINISTORE_REQUIREPASS?.trim() || undefined;
+  const dashboardPassword = env.MINISTORE_DASHBOARD_PASSWORD?.trim() || undefined;
+  
+  const disabledStr = env.MINISTORE_DISABLED_COMMANDS?.trim();
+  const disabledCommands = new Set<string>();
+  if (disabledStr) {
+    for (const cmd of disabledStr.split(',')) {
+      const trimmed = cmd.trim().toUpperCase();
+      if (trimmed) disabledCommands.add(trimmed);
+    }
+  }
+
+  const config: ServerConfig = {
     host: host !== undefined && host.length > 0 ? host : DEFAULT_HOST,
     port: parseIntInRange(env.MINISTORE_PORT, DEFAULT_PORT, 'MINISTORE_PORT', 1, 65535),
     maxLineBytes: parseIntInRange(
@@ -103,5 +122,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     statsPort: env.PORT ? parseInt(env.PORT, 10) : parseIntInRange(env.MINISTORE_STATS_PORT, 8090, 'MINISTORE_STATS_PORT', 1, 65535),
     aofPath: aofPath !== undefined && aofPath.length > 0 ? aofPath : DEFAULT_AOF_PATH,
     aofFsync,
+    disabledCommands,
+    ...(requirepass !== undefined ? { requirepass } : {}),
+    ...(dashboardPassword !== undefined ? { dashboardPassword } : {}),
   };
+  
+  return config;
 }

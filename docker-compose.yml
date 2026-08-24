@@ -6,10 +6,11 @@ services:
     ports:
       - "6380:6380"
       - "8090:8090"
+    env_file:
+      - .env
     environment:
       - MINISTORE_HOST=0.0.0.0
-      - MINISTORE_PORT=6380
-      - MINISTORE_STATS_PORT=8090
+      - NODE_ENV=production
     volumes:
       - store-data:/data
     restart: unless-stopped
@@ -20,6 +21,8 @@ services:
       dockerfile: dashboard/Dockerfile
     ports:
       - "3000:3000"
+    environment:
+      - VITE_WS_URL=ws://localhost:8090
     depends_on:
       - store-engine
     restart: unless-stopped

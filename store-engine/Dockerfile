@@ -1,27 +1,39 @@
-FROM node:24-alpine
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
-# Copy package descriptors
 COPY package.json package-lock.json ./
 COPY protocol/package.json ./protocol/
 COPY store-engine/package.json ./store-engine/
 COPY dashboard/package.json ./dashboard/
 COPY cli/package.json ./cli/
 
-# Install dependencies
 RUN npm ci
 
-# Copy full source
 COPY . .
 
-# Build dependencies and store-engine
 RUN npm run build --workspace @ministore/protocol && \
     npm run build --workspace @ministore/store-engine
 
-# Setup persistence directory
+# Remove devDependencies to keep the production image lean
+RUN npm prune --omit=dev
+
+FROM node:24-alpine AS runner
+
+WORKDIR /app
+
+# Copy pruned node_modules and built dist folders
+COPY --from=builder /app/package.json /app/package-lock.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/protocol/package.json ./protocol/
+COPY --from=builder /app/protocol/dist ./protocol/dist
+COPY --from=builder /app/store-engine/package.json ./store-engine/
+COPY --from=builder /app/store-engine/dist ./store-engine/dist
+
+ENV NODE_ENV=production
 ENV MINISTORE_DUMP_PATH=/data/dump.json
 ENV MINISTORE_AOF_PATH=/data/appendonly.aof
+
 RUN mkdir -p /data
 
 EXPOSE 6380

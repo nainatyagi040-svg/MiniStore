@@ -19,9 +19,14 @@ export class CommandHandler {
   readonly #persistenceManager: PersistenceManager | undefined;
   readonly #aofWriter: AofWriter | undefined;
   readonly #pubSubManager: PubSubManager | undefined;
+  readonly #requirepass: string | undefined;
+  readonly #disabledCommands: Set<string>;
 
   // Track per-connection transaction state: connection ID -> queued commands
   readonly #transactions = new Map<string, Array<{ line: string; command: any }>>();
+  
+  // Track authenticated connection IDs
+  readonly #authenticated = new Set<string>();
   
   // Ring buffer of recent mutating commands (max 15)
   readonly #recentActivity: string[] = [];
@@ -30,12 +35,16 @@ export class CommandHandler {
     store: Store,
     persistenceManager?: PersistenceManager,
     aofWriter?: AofWriter,
-    pubSubManager?: PubSubManager
+    pubSubManager?: PubSubManager,
+    requirepass?: string,
+    disabledCommands?: Set<string>
   ) {
     this.#store = store;
     this.#persistenceManager = persistenceManager;
     this.#aofWriter = aofWriter;
     this.#pubSubManager = pubSubManager;
+    this.#requirepass = requirepass;
+    this.#disabledCommands = disabledCommands ?? new Set();
   }
 
   get recentActivity(): string[] {
@@ -57,6 +66,22 @@ export class CommandHandler {
     }
 
     const command = parsed.command;
+
+    if (this.#requirepass !== undefined && !this.#authenticated.has(connection.id)) {
+      if (command.name === 'AUTH') {
+        if (command.password === this.#requirepass) {
+          this.#authenticated.add(connection.id);
+          return reply.ok();
+        } else {
+          return reply.error('invalid password');
+        }
+      }
+      return reply.error('NOAUTH Authentication required.');
+    }
+
+    if (this.#disabledCommands.has(command.name)) {
+      return reply.error('command disabled');
+    }
 
     // Subscribed connections are restricted
     if (this.#pubSubManager?.isSubscribed(connection)) {
@@ -245,6 +270,11 @@ export class CommandHandler {
         if (!this.#pubSubManager) return reply.error('Pub/Sub not configured');
         const count = this.#pubSubManager.publish(command.channel, command.message);
         return reply.integer(count);
+      }
+      case 'AUTH': {
+        // If requirepass is not set, or already authenticated, just return ok.
+        // We handle actual password verification early in handleLine.
+        return reply.ok();
       }
       default: {
         return reply.error(`unhandled command ${JSON.stringify(command)}`);

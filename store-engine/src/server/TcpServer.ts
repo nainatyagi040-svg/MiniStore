@@ -42,13 +42,20 @@ export class TcpServer {
 
   /** Starts listening. Resolves with the actual bound address (port may be ephemeral). */
   async listen(): Promise<{ host: string; port: number }> {
-    this.#server.listen(this.#options.port, this.#options.host);
-    await once(this.#server, 'listening');
-    const address = this.#server.address();
-    if (address === null || typeof address === 'string') {
-      throw new Error('TcpServer: expected an AddressInfo after listening');
+    try {
+      this.#server.listen(this.#options.port, this.#options.host);
+      await once(this.#server, 'listening');
+      const address = this.#server.address();
+      if (address === null || typeof address === 'string') {
+        throw new Error('TcpServer: expected an AddressInfo after listening');
+      }
+      return { host: address.address, port: address.port };
+    } catch (err: any) {
+      if (err.code === 'EADDRINUSE') {
+        throw new Error(`Port ${this.#options.port} is already in use. Please choose a different port or stop the conflicting service.`);
+      }
+      throw err;
     }
-    return { host: address.address, port: address.port };
   }
 
   /** Stops accepting connections and destroys any that remain open. */
@@ -97,9 +104,14 @@ export class TcpServer {
         if (line.length === 0) {
           continue; // ignore blank lines
         }
-        const reply = this.#handleLine(line, connection);
-        if (reply !== undefined && reply !== null) {
-          socket.write(reply);
+        try {
+          const reply = this.#handleLine(line, connection);
+          if (reply !== undefined && reply !== null) {
+            socket.write(reply);
+          }
+        } catch (err: any) {
+          console.error('Unhandled error processing command:', err);
+          socket.write(`-ERR internal server error\r\n`);
         }
       }
     });

@@ -101,6 +101,8 @@ export function parseCommand(line: string): ParseResult {
       return parseExec(tokens);
     case 'DISCARD':
       return parseDiscard(tokens);
+    case 'AUTH':
+      return parseAuth(tokens);
     default:
       return err(`unknown command '${tokens[0]!}'`);
   }
@@ -201,6 +203,11 @@ function parseExec(tokens: string[]): ParseResult {
 function parseDiscard(tokens: string[]): ParseResult {
   if (tokens.length !== 1) return arityError('discard');
   return ok({ name: 'DISCARD' });
+}
+
+function parseAuth(tokens: string[]): ParseResult {
+  if (tokens.length !== 2) return arityError('auth');
+  return ok({ name: 'AUTH', password: tokens[1]! });
 }
 
 /** Upper bound (~317 years) so that `now + seconds * 1000` stays a safe integer. */

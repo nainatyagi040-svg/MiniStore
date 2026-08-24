@@ -20,14 +20,23 @@ interface Snapshot {
 export default function LiveDashboard() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [connected, setConnected] = useState(false);
+  const [token, setToken] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  useEffect(() => {
+  const connect = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setIsConnecting(true);
+    setError('');
+
     const wsUrl = import.meta.env.VITE_WS_URL || `ws://${window.location.hostname}:8090`;
-    const ws = new WebSocket(wsUrl);
+    const urlWithToken = `${wsUrl}?token=${encodeURIComponent(token)}`;
+    const ws = new WebSocket(urlWithToken);
 
     ws.onopen = () => {
       setConnected(true);
+      setIsConnecting(false);
     };
 
     ws.onmessage = (event) => {
@@ -41,11 +50,23 @@ export default function LiveDashboard() {
 
     ws.onclose = () => {
       setConnected(false);
+      setIsConnecting(false);
+      if (!connected) {
+        setError('Connection failed. Incorrect password or server is offline.');
+      }
     };
 
     return () => {
       ws.close();
     };
+  };
+
+  useEffect(() => {
+    // We don't auto-connect if we want to show login, but wait, maybe the server doesn't require a password?
+    // Let's just try to connect without password first.
+    let cleanup = connect();
+    return () => { if (cleanup) cleanup(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -111,7 +132,28 @@ export default function LiveDashboard() {
         </div>
       </header>
       
-      {!snapshot ? (
+      {!connected ? (
+        <div className="login-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, marginTop: '4rem' }}>
+          <form onSubmit={connect} style={{ background: 'rgba(15, 23, 42, 0.8)', padding: '2rem', borderRadius: '1rem', border: '1px solid var(--accent)', display: 'flex', flexDirection: 'column', gap: '1rem', minWidth: '300px' }}>
+            <h2>Authentication Required</h2>
+            {error && <p style={{ color: '#ef4444', fontSize: '0.875rem' }}>{error}</p>}
+            <input 
+              type="password" 
+              placeholder="Dashboard Password" 
+              value={token} 
+              onChange={e => setToken(e.target.value)}
+              style={{ padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.5)', color: 'white' }}
+            />
+            <button 
+              type="submit" 
+              disabled={isConnecting}
+              style={{ padding: '0.75rem', borderRadius: '0.5rem', border: 'none', background: 'var(--accent)', color: 'var(--bg-color)', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              {isConnecting ? 'Connecting...' : 'Connect'}
+            </button>
+          </form>
+        </div>
+      ) : !snapshot ? (
         <div className="loading">Waiting for data...</div>
       ) : (
         <main className="content">

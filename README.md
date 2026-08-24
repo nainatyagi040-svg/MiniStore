@@ -169,6 +169,24 @@ To run the full test suite across the monorepo packages:
 npm run test --workspaces
 ```
 
+## Deployment Instructions
+
+### Preparing for Production
+1. **Configuration**: Copy `.env.example` to `.env` in the root directory. Update it with your production settings.
+   - Set `NODE_ENV=production` to disable verbose development logging.
+   - Set a strong `MINISTORE_REQUIREPASS` and `MINISTORE_DASHBOARD_PASSWORD`.
+   - Consider setting `MINISTORE_DISABLED_COMMANDS` to disable dangerous commands (e.g., `FLUSHALL,BGSAVE,BGREWRITEAOF`) in production.
+2. **Data Persistence**: Ensure the directory containing `MINISTORE_DUMP_PATH` and `MINISTORE_AOF_PATH` is mounted to persistent storage (like a Docker volume).
+
+### Docker Deployment
+The included `docker-compose.yml` sets up both the engine and the dashboard. The `store-engine` and `dashboard` both use multi-stage Dockerfiles to produce lean production images.
+```bash
+# Start the production stack in the background
+docker compose up -d --build
+```
+- The **Live Dashboard** will be accessible at `http://localhost:3000`.
+- The **Store Engine TCP Server** will be accessible at `localhost:6380`.
+
 ## Features & Limitations
 
 **Implemented Features:**
@@ -181,8 +199,8 @@ npm run test --workspaces
 - [x] Custom zero-dependency wire protocol.
 - [x] Live WebSocket telemetry for monitoring.
 - [x] Transactions (`MULTI`, `EXEC`, `DISCARD`) for atomic execution.
+- [x] Production-ready Security: Password authentication (`AUTH`), Dashboard login, and command blacklisting.
 
 **Known Limitations:**
-- No Authentication/ACLs (currently meant for trusted local networks).
 - No Clustering or Replication support.
 - Limited commands (e.g. no `ZSET` or `Set` primitives yet).
