@@ -40,6 +40,18 @@ export function array(items: readonly string[]): string {
   return out;
 }
 
+/**
+ * Multi-bulk array reply without wrapping items as bulk strings.
+ * Used by EXEC to return an array of already-formatted RESP replies (like integers, arrays, OKs).
+ */
+export function rawArray(replies: readonly string[]): string {
+  let out = `*${replies.length}${CRLF}`;
+  for (const rep of replies) {
+    out += rep;
+  }
+  return out;
+}
+
 export function error(message: string): string {
   return `-ERR ${message}${CRLF}`;
 }

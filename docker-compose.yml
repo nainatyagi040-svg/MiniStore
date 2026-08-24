@@ -1,0 +1,28 @@
+services:
+  store-engine:
+    build:
+      context: .
+      dockerfile: store-engine/Dockerfile
+    ports:
+      - "6380:6380"
+      - "8090:8090"
+    environment:
+      - MINISTORE_HOST=0.0.0.0
+      - MINISTORE_PORT=6380
+      - MINISTORE_STATS_PORT=8090
+    volumes:
+      - store-data:/data
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - store-engine
+    restart: unless-stopped
+
+volumes:
+  store-data:

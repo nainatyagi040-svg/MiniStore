@@ -95,6 +95,12 @@ export function parseCommand(line: string): ParseResult {
       return parseUnsubscribe(tokens);
     case 'PUBLISH':
       return parsePublish(tokens);
+    case 'MULTI':
+      return parseMulti(tokens);
+    case 'EXEC':
+      return parseExec(tokens);
+    case 'DISCARD':
+      return parseDiscard(tokens);
     default:
       return err(`unknown command '${tokens[0]!}'`);
   }
@@ -180,6 +186,21 @@ function parseUnsubscribe(tokens: string[]): ParseResult {
 function parsePublish(tokens: string[]): ParseResult {
   if (tokens.length !== 3) return arityError('publish');
   return ok({ name: 'PUBLISH', channel: tokens[1]!, message: tokens[2]! });
+}
+
+function parseMulti(tokens: string[]): ParseResult {
+  if (tokens.length !== 1) return arityError('multi');
+  return ok({ name: 'MULTI' });
+}
+
+function parseExec(tokens: string[]): ParseResult {
+  if (tokens.length !== 1) return arityError('exec');
+  return ok({ name: 'EXEC' });
+}
+
+function parseDiscard(tokens: string[]): ParseResult {
+  if (tokens.length !== 1) return arityError('discard');
+  return ok({ name: 'DISCARD' });
 }
 
 /** Upper bound (~317 years) so that `now + seconds * 1000` stays a safe integer. */

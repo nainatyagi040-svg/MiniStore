@@ -65,7 +65,7 @@ async function main(): Promise<void> {
   }, (line, conn) => handler.handleLine(line, conn));
   const statsServer = new StatsServer(
     store,
-    '127.0.0.1',
+    config.host,
     config.statsPort,
     1000,
     handler,
@@ -80,7 +80,7 @@ async function main(): Promise<void> {
     `MiniStore engine listening on ${host}:${port} ` +
       `(maxKeys=${config.maxKeys}, sweep=${config.sweepIntervalMs}ms/${config.sweepSampleSize})`,
   );
-  console.log(`StatsServer listening on ws://127.0.0.1:${config.statsPort}`);
+  console.log(`StatsServer listening on ws://${config.host}:${config.statsPort}`);
 
   let shuttingDown = false;
   const shutdown = async (signal: string): Promise<void> => {

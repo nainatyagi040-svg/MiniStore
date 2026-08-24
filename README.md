@@ -1,5 +1,7 @@
 # MiniStore
 
+[![CI](https://github.com/nainatyagi040-svg/MiniStore/actions/workflows/ci.yml/badge.svg)](https://github.com/nainatyagi040-svg/MiniStore/actions/workflows/ci.yml)
+
 MiniStore is an in-memory key-value store inspired by Redis. Built from the ground up in Node.js/TypeScript, it features a custom TCP protocol with RESP-like encoding, TTL tracking with LRU eviction, and durable persistence via background snapshots and an Append-Only File (AOF). To provide a complete ecosystem, the monorepo includes the core `store-engine` database, a shared `protocol` library, a React-based live `dashboard` (powered by WebSocket stats), and an interactive REPL `cli` client.
 
 ## Benchmarks
@@ -96,6 +98,9 @@ The `store-engine` currently supports the following commands, executed directly 
 | **`SUBSCRIBE channel [channel...]`** | Listen for messages published to the given channels. |
 | **`UNSUBSCRIBE [channel...]`** | Stop listening for messages posted to the given channels. |
 | **`PUBLISH channel message`** | Post a message to a channel. |
+| **`MULTI`** | Start a transaction block. |
+| **`EXEC`** | Execute all commands issued after MULTI. |
+| **`DISCARD`** | Discard all commands issued after MULTI. |
 
 ## Persistence
 
@@ -133,6 +138,19 @@ To connect to the database via the interactive CLI:
 npm run cli
 ```
 
+## Running with Docker
+
+You can run the entire MiniStore stack (database and dashboard) using Docker Compose.
+
+```bash
+# Start the stack in the background
+docker compose up -d
+```
+
+- The **Live Dashboard** will be accessible at `http://localhost:3000`.
+- The **Store Engine TCP Server** will be accessible at `localhost:6380`.
+- Persistence files (dump and AOF) are stored in a persistent Docker volume, so your data will survive container restarts.
+
 ## Running Tests
 
 To run the full test suite across the monorepo packages:
@@ -152,9 +170,9 @@ npm run test --workspaces
 - [x] Pub/Sub messaging system (`SUBSCRIBE` / `PUBLISH`).
 - [x] Custom zero-dependency wire protocol.
 - [x] Live WebSocket telemetry for monitoring.
+- [x] Transactions (`MULTI`, `EXEC`, `DISCARD`) for atomic execution.
 
 **Known Limitations:**
-- No support for Transactions (`MULTI`/`EXEC`).
 - No Authentication/ACLs (currently meant for trusted local networks).
 - No Clustering or Replication support.
 - Limited commands (e.g. no `ZSET` or `Set` primitives yet).

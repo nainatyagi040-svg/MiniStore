@@ -14,6 +14,7 @@ interface Snapshot {
   maxKeys: number;
   evictions: number;
   keys: KeyStats[];
+  recentActivity?: string[];
 }
 
 export default function LiveDashboard() {
@@ -22,7 +23,8 @@ export default function LiveDashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8090');
+    const wsUrl = `ws://${window.location.hostname}:8090`;
+    const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
       setConnected(true);
@@ -156,6 +158,23 @@ export default function LiveDashboard() {
                     ))}
                   </tbody>
                 </table>
+              )}
+            </div>
+          </section>
+
+          <section className="activity-section" style={{ marginTop: '2rem' }}>
+            <h2>Recent Activity</h2>
+            <div className="table-container" style={{ padding: '1rem', background: 'rgba(15, 23, 42, 0.4)', borderRadius: '0.5rem' }}>
+              {(!snapshot.recentActivity || snapshot.recentActivity.length === 0) ? (
+                <p className="empty-state">No recent mutating commands.</p>
+              ) : (
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontFamily: 'monospace', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {snapshot.recentActivity.map((log, index) => (
+                    <li key={index} style={{ padding: '0.5rem', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '0.25rem', borderLeft: '3px solid var(--accent)' }}>
+                      {log}
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
           </section>

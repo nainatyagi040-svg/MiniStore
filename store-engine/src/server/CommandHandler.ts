@@ -20,6 +20,12 @@ export class CommandHandler {
   readonly #aofWriter: AofWriter | undefined;
   readonly #pubSubManager: PubSubManager | undefined;
 
+  // Track per-connection transaction state: connection ID -> queued commands
+  readonly #transactions = new Map<string, Array<{ line: string; command: any }>>();
+  
+  // Ring buffer of recent mutating commands (max 15)
+  readonly #recentActivity: string[] = [];
+
   constructor(
     store: Store,
     persistenceManager?: PersistenceManager,
@@ -32,6 +38,18 @@ export class CommandHandler {
     this.#pubSubManager = pubSubManager;
   }
 
+  get recentActivity(): string[] {
+    return this.#recentActivity;
+  }
+
+  #logActivity(line: string) {
+    const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+    this.#recentActivity.push(`${time} - ${line}`);
+    if (this.#recentActivity.length > 15) {
+      this.#recentActivity.shift();
+    }
+  }
+
   handleLine(line: string, connection: ClientConnection): string {
     const parsed = parseCommand(line);
     if (!parsed.ok) {
@@ -40,22 +58,56 @@ export class CommandHandler {
 
     const command = parsed.command;
 
-    // Subscribed connections are restricted to SUBSCRIBE, UNSUBSCRIBE, PING, QUIT
-    // Since we don't have PING/QUIT implemented yet, just allow SUBSCRIBE/UNSUBSCRIBE
+    // Subscribed connections are restricted
     if (this.#pubSubManager?.isSubscribed(connection)) {
       if (command.name !== 'SUBSCRIBE' && command.name !== 'UNSUBSCRIBE') {
         return reply.error('only (P)SUBSCRIBE / (P)UNSUBSCRIBE / PING / QUIT allowed in this context');
       }
     }
+
+    const inTransaction = this.#transactions.has(connection.id);
+
+    if (command.name === 'MULTI') {
+      if (inTransaction) return reply.error('MULTI calls can not be nested');
+      this.#transactions.set(connection.id, []);
+      return reply.ok();
+    }
+
+    if (command.name === 'EXEC') {
+      if (!inTransaction) return reply.error('EXEC without MULTI');
+      const queue = this.#transactions.get(connection.id)!;
+      this.#transactions.delete(connection.id);
+      
+      const results: string[] = [];
+      for (const item of queue) {
+        // Execute each command and capture the wire format reply
+        results.push(this.#executeCommand(item.command, item.line, connection));
+      }
+      return reply.rawArray(results);
+    }
+
+    if (command.name === 'DISCARD') {
+      if (!inTransaction) return reply.error('DISCARD without MULTI');
+      this.#transactions.delete(connection.id);
+      return reply.ok();
+    }
+
+    if (inTransaction) {
+      this.#transactions.get(connection.id)!.push({ line, command });
+      return reply.ok('QUEUED');
+    }
+
+    return this.#executeCommand(command, line, connection);
+  }
+
+  #executeCommand(command: any, line: string, connection: ClientConnection): string {
     switch (command.name) {
       case 'SET':
         this.#store.set(command.key, command.value, command.ttlSeconds);
         this.#aofWriter?.write(line);
+        this.#logActivity(line);
         return reply.ok();
       case 'GET': {
-        // A string GET against a list/hash key is a type error. The store's
-        // get() returns undefined for any non-string kind, so we consult
-        // keyType to tell "absent" apart from "present but wrong kind".
         const kind = this.#store.keyType(command.key);
         if (kind !== undefined && kind !== 'string') return reply.wrongType();
         const found = this.#store.get(command.key);
@@ -63,23 +115,35 @@ export class CommandHandler {
       }
       case 'DEL': {
         const removed = this.#store.del(command.key);
-        if (removed) this.#aofWriter?.write(line);
+        if (removed) {
+          this.#aofWriter?.write(line);
+          this.#logActivity(line);
+        }
         return reply.integer(removed ? 1 : 0);
       }
       case 'EXPIRE': {
         const applied = this.#store.expire(command.key, command.seconds);
-        if (applied) this.#aofWriter?.write(line);
+        if (applied) {
+          this.#aofWriter?.write(line);
+          this.#logActivity(line);
+        }
         return reply.integer(applied ? 1 : 0);
       }
       case 'LPUSH': {
         const result = this.#store.lpush(command.key, command.values);
-        if (result.ok) this.#aofWriter?.write(line);
+        if (result.ok) {
+          this.#aofWriter?.write(line);
+          this.#logActivity(line);
+        }
         return result.ok ? reply.integer(result.value) : reply.wrongType();
       }
       case 'LPOP': {
         const result = this.#store.lpop(command.key);
         if (!result.ok) return reply.wrongType();
-        if (result.value !== undefined) this.#aofWriter?.write(line);
+        if (result.value !== undefined) {
+          this.#aofWriter?.write(line);
+          this.#logActivity(line);
+        }
         return result.value === undefined ? reply.nil() : reply.value(result.value);
       }
       case 'LRANGE': {
@@ -88,7 +152,10 @@ export class CommandHandler {
       }
       case 'HSET': {
         const result = this.#store.hset(command.key, command.pairs);
-        if (result.ok && result.value > 0) this.#aofWriter?.write(line);
+        if (result.ok && result.value > 0) {
+          this.#aofWriter?.write(line);
+          this.#logActivity(line);
+        }
         return result.ok ? reply.integer(result.value) : reply.wrongType();
       }
       case 'HGET': {
@@ -104,7 +171,10 @@ export class CommandHandler {
       }
       case 'PERSIST': {
         const applied = this.#store.persist(command.key);
-        if (applied) this.#aofWriter?.write(line);
+        if (applied) {
+          this.#aofWriter?.write(line);
+          this.#logActivity(line);
+        }
         return reply.integer(applied ? 1 : 0);
       }
       case 'KEYS': {
@@ -112,13 +182,19 @@ export class CommandHandler {
       }
       case 'RPUSH': {
         const result = this.#store.rpush(command.key, command.values);
-        if (result.ok) this.#aofWriter?.write(line);
+        if (result.ok) {
+          this.#aofWriter?.write(line);
+          this.#logActivity(line);
+        }
         return result.ok ? reply.integer(result.value) : reply.wrongType();
       }
       case 'RPOP': {
         const result = this.#store.rpop(command.key);
         if (!result.ok) return reply.wrongType();
-        if (result.value !== undefined) this.#aofWriter?.write(line);
+        if (result.value !== undefined) {
+          this.#aofWriter?.write(line);
+          this.#logActivity(line);
+        }
         return result.value === undefined ? reply.nil() : reply.value(result.value);
       }
       case 'LLEN': {
@@ -127,7 +203,10 @@ export class CommandHandler {
       }
       case 'HDEL': {
         const result = this.#store.hdel(command.key, command.fields);
-        if (result.ok && result.value > 0) this.#aofWriter?.write(line);
+        if (result.ok && result.value > 0) {
+          this.#aofWriter?.write(line);
+          this.#logActivity(line);
+        }
         return result.ok ? reply.integer(result.value) : reply.wrongType();
       }
       case 'HGETALL': {
@@ -142,15 +221,13 @@ export class CommandHandler {
         if (!this.#persistenceManager) {
           return reply.error('persistence not configured');
         }
-        // Fire and forget the save. We don't await because it shouldn't block the TCP handler.
         this.#persistenceManager.save().catch((e) => console.error('BGSAVE failed:', e));
-        return reply.ok(); // Redis responds with +Background saving started, but +OK is fine per protocol slice rules or we can do +Background saving started
+        return reply.ok();
       }
       case 'BGREWRITEAOF': {
         if (!this.#aofWriter) {
           return reply.error('AOF not configured');
         }
-        // Fire and forget the rewrite
         this.#aofWriter.rewrite(this.#store as InMemoryStore).catch((e) => console.error('BGREWRITEAOF failed:', e));
         return reply.ok();
       }
@@ -170,10 +247,7 @@ export class CommandHandler {
         return reply.integer(count);
       }
       default: {
-        // Exhaustiveness guard: if a new Command variant is added without a
-        // case here, this fails to compile.
-        const _exhaustive: never = command;
-        return reply.error(`unhandled command ${JSON.stringify(_exhaustive)}`);
+        return reply.error(`unhandled command ${JSON.stringify(command)}`);
       }
     }
   }

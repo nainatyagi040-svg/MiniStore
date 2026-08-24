@@ -79,10 +79,7 @@ export default function Home() {
           transition={{ duration: 1, delay: 0.2 }}
         >
           <TopNav />
-          <ShaderHero 
-            headline="MiniStore" 
-            subtitle="An in-memory, Redis-inspired key-value store built in Node.js with TTL tracking, LRU eviction, and dual snapshot/AOF persistence." 
-          />
+          <ShaderHero />
           <FeaturesSection />
           <ArchitectureSection />
           <BenchmarksSection />

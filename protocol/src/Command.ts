@@ -142,6 +142,18 @@ export interface PublishCommand {
   readonly message: string;
 }
 
+export interface MultiCommand {
+  readonly name: 'MULTI';
+}
+
+export interface ExecCommand {
+  readonly name: 'EXEC';
+}
+
+export interface DiscardCommand {
+  readonly name: 'DISCARD';
+}
+
 export type Command =
   | SetCommand
   | GetCommand
@@ -166,7 +178,10 @@ export type Command =
   | BgrewriteaofCommand
   | SubscribeCommand
   | UnsubscribeCommand
-  | PublishCommand;
+  | PublishCommand
+  | MultiCommand
+  | ExecCommand
+  | DiscardCommand;
 
 /** A malformed line. Parse errors are expected input, not exceptions, so they are values. */
 export interface ParseError {

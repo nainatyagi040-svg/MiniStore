@@ -1,13 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import lighthouseBg from '../assets/lighthouse-bg.png';
 
-interface ShaderHeroProps {
-  headline: string;
-  subtitle: string;
-}
-
-export default function ShaderHero({ headline, subtitle }: ShaderHeroProps) {
+export default function ShaderHero() {
   const navigate = useNavigate();
 
   return (

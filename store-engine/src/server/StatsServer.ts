@@ -13,6 +13,7 @@ export interface Snapshot {
     type: string;
     ttl: number;
   }>;
+  recentActivity?: string[];
 }
 
 export class StatsServer {
@@ -192,7 +193,8 @@ export class StatsServer {
       size: this.#store.size,
       maxKeys: this.#store.maxKeys,
       evictions: this.#store.evictions,
-      keys
+      keys,
+      recentActivity: this.#commandHandler?.recentActivity ?? []
     };
   }
 }
