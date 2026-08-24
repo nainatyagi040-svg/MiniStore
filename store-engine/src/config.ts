@@ -119,7 +119,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       1,
       Number.MAX_SAFE_INTEGER,
     ),
-    statsPort: env.PORT ? parseInt(env.PORT, 10) : parseIntInRange(env.MINISTORE_STATS_PORT, 8090, 'MINISTORE_STATS_PORT', 1, 65535),
+    statsPort: parseIntInRange(env.MINISTORE_STATS_PORT, 8090, 'MINISTORE_STATS_PORT', 1, 65535),
     aofPath: aofPath !== undefined && aofPath.length > 0 ? aofPath : DEFAULT_AOF_PATH,
     aofFsync,
     disabledCommands,
