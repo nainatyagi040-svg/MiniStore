@@ -1,4 +1,0 @@
-SET clik 100
-LPUSH clil 1 2
-SET clik 100
-LPUSH clil 1 2
