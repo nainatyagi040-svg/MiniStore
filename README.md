@@ -151,15 +151,15 @@ docker compose up -d
 - The **Store Engine TCP Server** will be accessible at `localhost:6380`.
 - Persistence files (dump and AOF) are stored in a persistent Docker volume, so your data will survive container restarts.
 
-## Deploying to Render
+## Deploying to Railway
 
-If you deploy `store-engine` and `dashboard` as separate Web Services/Static Sites on Render, note that Render's free tier proxies HTTP/WebSocket traffic but **does not proxy raw TCP traffic**.
+If you deploy `store-engine` and `dashboard` as separate Web Services/Static Sites on Railway, note that Railway's default HTTP proxy handles HTTP/WebSocket traffic but **does not proxy raw TCP traffic** over the standard web port.
 
 Because of this limitation:
 - The Live Dashboard (WebSocket) will connect perfectly and work live.
-- The `npm run cli` interactive client (raw TCP) will **not** be able to connect to the Render deployment. It only works when pointing at a locally running `store-engine`.
+- The `npm run cli` interactive client (raw TCP) will **not** be able to connect to the Railway deployment unless you specifically configure a Railway TCP Proxy. It works flawlessly out-of-the-box when pointing at a locally running `store-engine` or Docker container.
 
-> **Note on Persistence**: Render's free tier uses an ephemeral filesystem. This means persistence (dump/AOF files) will only survive within a single running instance. When the app sleeps or redeploys, data will be reset. For durable persistence across restarts, either upgrade to a paid Render Disk or use Docker locally!
+> **Note on Persistence**: Railway's default filesystem is ephemeral. This means persistence (dump/AOF files) will only survive within a single running instance. When the app sleeps or redeploys, data will be reset. For durable persistence across restarts, either attach a Railway Volume or use Docker locally!
 
 ## Running Tests
 
