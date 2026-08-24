@@ -40,22 +40,28 @@ export class TcpServer {
     this.#server = net.createServer((socket) => this.#onConnection(socket));
   }
 
-  /** Starts listening. Resolves with the actual bound address (port may be ephemeral). */
   async listen(): Promise<{ host: string; port: number }> {
-    try {
-      this.#server.listen(this.#options.port, this.#options.host);
-      await once(this.#server, 'listening');
-      const address = this.#server.address();
-      if (address === null || typeof address === 'string') {
-        throw new Error('TcpServer: expected an AddressInfo after listening');
-      }
-      return { host: address.address, port: address.port };
-    } catch (err: any) {
-      if (err.code === 'EADDRINUSE') {
-        throw new Error(`Port ${this.#options.port} is already in use. Please choose a different port or stop the conflicting service.`);
-      }
-      throw err;
-    }
+    return new Promise((resolve, reject) => {
+      const onError = (err: any) => {
+        if (err.code === 'EADDRINUSE') {
+          console.error(`EADDRINUSE: Port ${this.#options.port} is already in use. Exiting cleanly.`);
+          process.exit(1);
+        }
+        reject(err);
+      };
+      
+      this.#server.once('error', onError);
+      
+      this.#server.listen(this.#options.port, this.#options.host, () => {
+        this.#server.removeListener('error', onError);
+        const address = this.#server.address();
+        if (address === null || typeof address === 'string') {
+          reject(new Error('TcpServer: expected an AddressInfo after listening'));
+          return;
+        }
+        resolve({ host: address.address, port: address.port });
+      });
+    });
   }
 
   /** Stops accepting connections and destroys any that remain open. */
