@@ -23,7 +23,7 @@ export default function LiveDashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const wsUrl = `ws://${window.location.hostname}:8090`;
+    const wsUrl = import.meta.env.VITE_WS_URL || `ws://${window.location.hostname}:8090`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {

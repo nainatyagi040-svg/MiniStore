@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import promisesFs from 'node:fs/promises';
+import path from 'node:path';
 import type { InMemoryStore } from './InMemoryStore.js';
 
 export class AofWriter {
@@ -18,6 +19,8 @@ export class AofWriter {
 
   start(): void {
     if (this.#fd !== undefined) return;
+    const dir = path.dirname(this.#path);
+    fs.mkdirSync(dir, { recursive: true });
     this.#fd = fs.openSync(this.#path, 'a');
     
     if (this.#fsyncPolicy === 'everysec') {
@@ -104,6 +107,8 @@ export class AofWriter {
       }
 
       const tempPath = this.#path + '.temp';
+      const dir = path.dirname(tempPath);
+      await promisesFs.mkdir(dir, { recursive: true });
       await promisesFs.writeFile(tempPath, commands.join('\n') + (commands.length > 0 ? '\n' : ''), 'utf-8');
       
       const buf = this.#rewriteBuffer;

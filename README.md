@@ -151,6 +151,16 @@ docker compose up -d
 - The **Store Engine TCP Server** will be accessible at `localhost:6380`.
 - Persistence files (dump and AOF) are stored in a persistent Docker volume, so your data will survive container restarts.
 
+## Deploying to Render
+
+If you deploy `store-engine` and `dashboard` as separate Web Services/Static Sites on Render, note that Render's free tier proxies HTTP/WebSocket traffic but **does not proxy raw TCP traffic**.
+
+Because of this limitation:
+- The Live Dashboard (WebSocket) will connect perfectly and work live.
+- The `npm run cli` interactive client (raw TCP) will **not** be able to connect to the Render deployment. It only works when pointing at a locally running `store-engine`.
+
+> **Note on Persistence**: Render's free tier uses an ephemeral filesystem. This means persistence (dump/AOF files) will only survive within a single running instance. When the app sleeps or redeploys, data will be reset. For durable persistence across restarts, either upgrade to a paid Render Disk or use Docker locally!
+
 ## Running Tests
 
 To run the full test suite across the monorepo packages:

@@ -102,6 +102,8 @@ export class PersistenceManager {
       }
 
       const tempPath = this.#dumpPath + '.temp';
+      const dir = path.dirname(tempPath);
+      await fs.mkdir(dir, { recursive: true });
       await fs.writeFile(tempPath, JSON.stringify(dump), 'utf-8');
       await fs.rename(tempPath, this.#dumpPath);
       

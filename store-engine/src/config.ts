@@ -33,9 +33,9 @@ const DEFAULT_MAX_LINE_BYTES = 64 * 1024; // 64 KiB
 const DEFAULT_MAX_KEYS = 1000;
 const DEFAULT_SWEEP_INTERVAL_MS = 1000;
 const DEFAULT_SWEEP_SAMPLE_SIZE = 20;
-const DEFAULT_DUMP_PATH = 'dump.json';
+const DEFAULT_DUMP_PATH = './data/dump.json';
 const DEFAULT_SAVE_INTERVAL_MS = 60000;
-const DEFAULT_AOF_PATH = 'appendonly.aof';
+const DEFAULT_AOF_PATH = './data/appendonly.aof';
 const DEFAULT_AOF_FSYNC = 'everysec';
 
 function parseIntInRange(
@@ -100,7 +100,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       1,
       Number.MAX_SAFE_INTEGER,
     ),
-    statsPort: parseIntInRange(env.MINISTORE_STATS_PORT, 8090, 'MINISTORE_STATS_PORT', 1, 65535),
+    statsPort: env.PORT ? parseInt(env.PORT, 10) : parseIntInRange(env.MINISTORE_STATS_PORT, 8090, 'MINISTORE_STATS_PORT', 1, 65535),
     aofPath: aofPath !== undefined && aofPath.length > 0 ? aofPath : DEFAULT_AOF_PATH,
     aofFsync,
   };

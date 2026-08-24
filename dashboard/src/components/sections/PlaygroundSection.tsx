@@ -31,7 +31,10 @@ export default function PlaygroundSection() {
     let reconnectTimeout: ReturnType<typeof setTimeout>;
     
     const connect = () => {
-      const ws = new WebSocket('ws://localhost:8090/playground');
+      const wsUrl = import.meta.env.VITE_WS_URL 
+        ? `${import.meta.env.VITE_WS_URL}/playground` 
+        : `ws://${window.location.hostname}:8090/playground`;
+      const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
