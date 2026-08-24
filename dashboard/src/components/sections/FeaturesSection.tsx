@@ -1,4 +1,7 @@
+import { useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { useScrollFade } from '../useScrollFade';
+import FeatureModal from '../FeatureModal';
 
 const features = [
   { title: 'TTL Expiration', desc: 'Active and Lazy TTL expiration for keys with precise timings.' },
@@ -11,6 +14,7 @@ const features = [
 
 export default function FeaturesSection() {
   const { ref, isVisible } = useScrollFade();
+  const [selectedFeature, setSelectedFeature] = useState<string | null>(null);
 
   return (
     <section id="features" style={{ padding: '6rem 2rem', maxWidth: '1000px', margin: '0 auto' }}>
@@ -32,22 +36,38 @@ export default function FeaturesSection() {
           gap: '1.5rem'
         }}>
           {features.map((f, i) => (
-            <div key={i} style={{
+            <button key={i} style={{
               background: 'rgba(30, 41, 59, 0.85)',
               border: '1px solid var(--border-color)',
               borderRadius: '1rem',
               padding: '1.5rem',
               transition: 'transform 0.2s',
+              textAlign: 'left',
+              cursor: 'pointer',
+              color: 'inherit',
+              fontFamily: 'inherit',
+              display: 'block',
+              width: '100%'
             }}
+            onClick={() => setSelectedFeature(f.title)}
             onMouseOver={e => e.currentTarget.style.transform = 'translateY(-5px)'}
             onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
             >
               <h3 style={{ color: 'var(--accent)', marginBottom: '0.5rem', fontSize: '1.25rem' }}>{f.title}</h3>
-              <p style={{ color: 'var(--text-muted)', lineHeight: 1.5 }}>{f.desc}</p>
-            </div>
+              <p style={{ color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>{f.desc}</p>
+            </button>
           ))}
         </div>
       </div>
+      
+      <AnimatePresence>
+        {selectedFeature && (
+          <FeatureModal 
+            featureId={selectedFeature} 
+            onClose={() => setSelectedFeature(null)} 
+          />
+        )}
+      </AnimatePresence>
     </section>
   );
 }

@@ -1,5 +1,7 @@
+import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import lighthouseBg from '../assets/lighthouse-bg.png';
 
 interface KeyStats {
   name: string;
@@ -17,6 +19,7 @@ interface Snapshot {
 export default function LiveDashboard() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [connected, setConnected] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const ws = new WebSocket('ws://localhost:8090');
@@ -44,13 +47,62 @@ export default function LiveDashboard() {
   }, []);
 
   return (
-    <motion.div 
-      className="dashboard-container"
-      initial={{ opacity: 0, y: 20 }}
+    <div style={{ minHeight: '100vh', color: 'var(--text-main)', position: 'relative' }}>
+      {/* Fixed Full-Page Background */}
+      <div 
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundImage: `url(${lighthouseBg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          zIndex: -2
+        }}
+      />
+      {/* Dark Overlay */}
+      <div 
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(15, 23, 42, 0.8)',
+          zIndex: -1
+        }}
+      />
+      <motion.div 
+        className="dashboard-container"
+        initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
     >
-      <header className="header">
+      <header className="header" style={{ position: 'relative' }}>
+        <button
+          onClick={() => navigate('/')}
+          style={{
+            position: 'absolute',
+            top: '0',
+            right: '0',
+            padding: '0.75rem 1.5rem',
+            fontSize: '1rem',
+            fontWeight: 600,
+            color: 'var(--bg-color)',
+            backgroundColor: 'var(--text-main)',
+            border: 'none',
+            borderRadius: '9999px',
+            cursor: 'pointer',
+            transition: 'transform 0.2s, background-color 0.2s',
+            boxShadow: '0 0 15px rgba(255, 255, 255, 0.2)'
+          }}
+          onMouseOver={e => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.backgroundColor = '#fff'; }}
+          onMouseOut={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.backgroundColor = 'var(--text-main)'; }}
+        >
+          Exit Dashboard
+        </button>
         <h1>MiniStore Dashboard</h1>
         <div className={`status-badge ${connected ? 'connected' : 'disconnected'}`}>
           {connected ? 'Live' : 'Disconnected'}
@@ -110,5 +162,6 @@ export default function LiveDashboard() {
         </main>
       )}
     </motion.div>
+    </div>
   );
 }
