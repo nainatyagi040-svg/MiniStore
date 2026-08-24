@@ -63,7 +63,14 @@ async function main(): Promise<void> {
     ...config,
     onConnectionClose: (conn) => pubSubManager.removeConnection(conn)
   }, (line, conn) => handler.handleLine(line, conn));
-  const statsServer = new StatsServer(store, '127.0.0.1', config.statsPort, 1000);
+  const statsServer = new StatsServer(
+    store,
+    '127.0.0.1',
+    config.statsPort,
+    1000,
+    handler,
+    (conn) => pubSubManager.removeConnection(conn)
+  );
 
   sweeper.start();
   const { host, port } = await server.listen();
