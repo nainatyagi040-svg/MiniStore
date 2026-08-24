@@ -17,6 +17,7 @@ import readline from 'node:readline';
  * events are surfaced (via logging, until the EventBus slice replaces it).
  */
 async function main(): Promise<void> {
+  console.log(`[PID: ${process.pid}] Starting MiniStore store-engine main()...`);
   const config = loadConfig();
 
   // Ensure data directories exist
@@ -84,7 +85,9 @@ async function main(): Promise<void> {
   );
 
   sweeper.start();
+  console.log(`[PID: ${process.pid}] Calling TcpServer.listen()...`);
   const { host, port } = await server.listen();
+  console.log(`[PID: ${process.pid}] Calling StatsServer.start()...`);
   await statsServer.start();
 
   console.log(
